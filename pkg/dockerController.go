@@ -3,11 +3,8 @@ package pkg
 import (
 	"context"
 	"fmt"
-	"github.com/containers/podman/v5/pkg/bindings/containers"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/image"
-
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 )
 
@@ -16,7 +13,7 @@ type DockerController struct {
 	Engine ContainerEngine
 }
 
-func NewDockerController() (*DockerController, error) {
+func NewDockerController(system string) (*DockerController, error) {
 	apiClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return nil, err
@@ -54,5 +51,43 @@ func (dc *DockerController) exist(name string) (bool, error) {
 }
 
 func (dc *DockerController) run(name string) error {
-	dc.client.Container
+	create, err := dc.client.ContainerCreate(
+		context.Background(),
+		&container.Config{Image: name},
+		nil,
+		nil,
+		nil,
+		name,
+	)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Container created: %s\n", create.ID)
+	err = dc.client.ContainerStart(context.Background(), create.ID, container.StartOptions{})
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Container with ID: %s started\n", create.ID)
+	return nil
+}
+
+func (dc *DockerController) update(name string) error {
+	pull, err := dc.client.ImagePull(context.Background(), name, image.PullOptions{})
+	if err != nil {
+		return err
+	}
+	fmt.Println("Image pulled")
+	err = pull.Close()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (dc *DockerController) exit(name string) error {
+	err := dc.client.ContainerRemove(context.Background(), name, container.RemoveOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
 }

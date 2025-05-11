@@ -1,6 +1,16 @@
 package main
 
-import "flag"
+import (
+	"flag"
+	"fmt"
+	"github.com/epicseven-cup/excalidraw-cli/pkg"
+	"runtime"
+)
+
+const (
+	EXCALIDRAW_IMAGE     = "excalidraw/excalidraw"
+	EXCALIDRAW_CONTAINER = "excalidraw-cli-container"
+)
 
 // Flags
 var start bool
@@ -20,9 +30,62 @@ func init() {
 	flag.BoolVar(&exit, "exit", false, "excalidraw client exit (shorthand)")
 	flag.StringVar(&config, "c", "~/config/exclidraw-cli/config", "excalidraw-cli config file")
 	flag.StringVar(&config, "config", "~/config/exclidraw-cli/config", "excalidraw-cli config file (shorthand)")
-	flag.Parse()
+}
+
+func excalidraw(system string) error {
+	c, err := pkg.NewController(system)
+	if err != nil {
+		return err
+	}
+
+	if start {
+		err = c.Run(EXCALIDRAW_IMAGE, EXCALIDRAW_CONTAINER)
+		if err != nil {
+			return err
+		}
+	}
+
+	if status {
+		b, _ := c.Status(EXCALIDRAW_CONTAINER)
+		fmt.Printf("Checking if the container is already running: %t\n", b)
+	}
+
+	if update {
+		err := c.Update(EXCALIDRAW_IMAGE)
+		if err != nil {
+			return err
+		}
+	}
+
+	if exit {
+		err := c.Exit(EXCALIDRAW_CONTAINER)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func main() {
-
+	fmt.Println("Running excalidraw-cli")
+	flag.Parse()
+	fmt.Println("Detecting operating system")
+	var goos string
+	switch goos = runtime.GOOS; goos {
+	case "darwin":
+		fmt.Println("OS: darwin / macOS")
+	case "linux":
+		fmt.Println("OS: linux")
+	case "windows":
+		fmt.Println("OS: windows")
+		fmt.Println("Not supported on Windows")
+		return
+	default:
+		fmt.Println("What is this? Did you really put a monitor and keyboard together and call it a computer?")
+		return
+	}
+	if err := excalidraw(goos); err != nil {
+		fmt.Println(err)
+	}
 }
