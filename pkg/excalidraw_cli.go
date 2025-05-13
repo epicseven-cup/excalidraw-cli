@@ -20,16 +20,16 @@ type EngineController struct {
 }
 
 type Controller interface {
-	// Checks for image exist
+	// Checks if the container already exist doesn't matter if it is already running or not
 	exist(imageName string) (bool, error)
-	// Runs the container
+	// Runs the container, checks if there is already a container stopped use that instead
 	run(imageName string, name string) error
-	// Exits the container
-	exit(name string) error // Feel like the naming here should be exit since the command is named exit, but stop sounds much better
-	// Check the status of the container
+	// Stops the container
+	stop(name string) error // Feel like the naming here should be exited since the command is named exit, but stop sounds much better
+	// Check the status of the container is running or not
 	status(name string) (bool, error)
-	// Update the image
-	update(imageName string) error
+	// Update the image, and remove the old image and container
+	update(imageName string, name string) error
 }
 
 func DetermineEngine() (ContainerEngine, error) {
@@ -87,12 +87,12 @@ func (e *EngineController) Run(imageName string, name string) error {
 	return e.Controller.run(imageName, name)
 }
 
-func (e *EngineController) Exit(name string) error {
-	return e.Controller.exit(name)
+func (e *EngineController) Stop(name string) error {
+	return e.Controller.stop(name)
 }
 
-func (e *EngineController) Update(name string) error {
-	return e.Controller.update(name)
+func (e *EngineController) Update(imageName string, name string) error {
+	return e.Controller.update(imageName, name)
 }
 
 func (e *EngineController) Status(name string) (bool, error) {

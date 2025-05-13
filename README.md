@@ -17,10 +17,8 @@ More information: https://go.dev/wiki/GOPATH#gopath-variable
 3. Install the binary
 ```bash
 go install github.com/epicseven-cup/excalidraw-cli@latest 
-
-
-4. Make sure you have a supported container engine installed and setup. (e.g. podman, docker...)
 ```
+4. Make sure you have a supported container engine installed and setup. (e.g. podman, docker...)
 
 There could be delays between the Goproxy and GitHub binarys, you can use the direct setup
 ```bash

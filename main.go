@@ -16,7 +16,7 @@ const (
 var start bool
 var status bool
 var update bool
-var exit bool
+var stop bool
 var config string
 
 func init() {
@@ -26,8 +26,8 @@ func init() {
 	flag.BoolVar(&status, "status", false, "excalidraw client status")
 	flag.BoolVar(&update, "u", false, "update excalidraw client image (shorthand)")
 	flag.BoolVar(&update, "update", false, "update excalidraw client image")
-	flag.BoolVar(&exit, "e", false, "excalidraw client exit")
-	flag.BoolVar(&exit, "exit", false, "excalidraw client exit (shorthand)")
+	flag.BoolVar(&stop, "sp", false, "excalidraw client exit")
+	flag.BoolVar(&stop, "stop", false, "excalidraw client exit (shorthand)")
 	flag.StringVar(&config, "c", "~/config/exclidraw-cli/config", "excalidraw-cli config file")
 	flag.StringVar(&config, "config", "~/config/exclidraw-cli/config", "excalidraw-cli config file (shorthand)")
 }
@@ -51,14 +51,14 @@ func excalidraw(system string) error {
 	}
 
 	if update {
-		err := c.Update(EXCALIDRAW_IMAGE)
+		err := c.Update(EXCALIDRAW_IMAGE, EXCALIDRAW_CONTAINER)
 		if err != nil {
 			return err
 		}
 	}
 
-	if exit {
-		err := c.Exit(EXCALIDRAW_CONTAINER)
+	if stop {
+		err := c.Stop(EXCALIDRAW_CONTAINER)
 		if err != nil {
 			return err
 		}
