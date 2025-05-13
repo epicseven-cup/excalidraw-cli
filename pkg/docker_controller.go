@@ -8,6 +8,9 @@ import (
 	"github.com/docker/docker/client"
 )
 
+
+// Beacuse of the differences between `podman` and `docker`, in `docker` you will need to keep track of the container `id`
+// Where in podman you can choose to keep track of `id` or container `name`
 type DockerController struct {
 	client *client.Client
 	Engine ContainerEngine
