@@ -18,6 +18,7 @@ var status bool
 var update bool
 var stop bool
 var config string
+var engine string
 
 func init() {
 	flag.BoolVar(&start, "st", false, "start excalidraw client (shorthand)")
@@ -30,10 +31,41 @@ func init() {
 	flag.BoolVar(&stop, "stop", false, "excalidraw client exit (shorthand)")
 	flag.StringVar(&config, "c", "~/config/exclidraw-cli/config", "excalidraw-cli config file")
 	flag.StringVar(&config, "config", "~/config/exclidraw-cli/config", "excalidraw-cli config file (shorthand)")
+	flag.StringVar(&engine, "e", "", "container engine (shorthand)")
+	flag.StringVar(&engine, "engine", "", "container engine")
+}
+
+func DetermineEngine(system string) (*pkg.EngineController, error) {
+	c, err := pkg.NewController(system)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if engine == "podman" {
+		podmanController, err := pkg.NewPodmanController(system)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Println("engine flag enable, overriding engine to podman engine")
+		c.Controller = podmanController
+	}
+
+	if engine == "docker" {
+		dockerController, err := pkg.NewDockerController(system)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Println("engine flag enable, overriding engine to docker engine")
+		c.Controller = dockerController
+	}
+
+	return c, nil
+
 }
 
 func excalidraw(system string) error {
-	c, err := pkg.NewController(system)
+	c, err := DetermineEngine(system)
 	if err != nil {
 		return err
 	}

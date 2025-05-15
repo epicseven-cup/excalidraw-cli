@@ -6,6 +6,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
+	"github.com/docker/go-connections/nat"
 )
 
 // DockerController is the main engine controller that will be used to control the excalidraw container
@@ -22,7 +23,7 @@ func NewDockerController(system string) (*DockerController, error) {
 	}
 
 	return &DockerController{
-		Engine: PodmanEngine,
+		Engine: DockerEngine,
 		client: apiClient,
 	}, nil
 }
@@ -41,13 +42,61 @@ func (dc *DockerController) exist(imageName string) (bool, error) {
 }
 
 func (dc *DockerController) run(imageName string, name string) error {
+
+	exist, err := dc.exist(imageName)
+	if err != nil {
+		return err
+	}
+
+	if exist {
+		fmt.Println("Noticed that you don't have the image, pulling now")
+		err := dc.update(imageName, name)
+		if err != nil {
+			return err
+		}
+	}
+
+	status, err := dc.status("/" + name)
+	if err != nil {
+		return err
+	}
+
+	if status {
+		fmt.Println("Noticed there was already a container created, re-starting that container...")
+		containerList, err := dc.client.ContainerList(context.Background(), container.ListOptions{
+			All: true,
+		})
+		if err != nil {
+			return err
+		}
+		for _, c := range containerList {
+			for _, i := range c.Names {
+				if i == name && c.Image == imageName {
+					err := dc.client.ContainerStart(context.Background(), c.ID, container.StartOptions{})
+					if err != nil {
+						return err
+					}
+					fmt.Println("Container re-started, it is r")
+					return nil
+				}
+			}
+		}
+		return nil
+	}
+
 	config := &container.Config{
 		Image: imageName,
 	}
 	create, err := dc.client.ContainerCreate(
 		context.Background(),
 		config,
-		nil,
+		&container.HostConfig{PortBindings: nat.PortMap{
+			"80/tcp": []nat.PortBinding{{
+				HostIP:   "127.0.0.1",
+				HostPort: "5000",
+			}},
+		},
+		},
 		nil,
 		nil,
 		name,
@@ -73,21 +122,35 @@ func (dc *DockerController) stop(name string) error {
 }
 
 func (dc *DockerController) status(name string) (bool, error) {
-	clientList, err := dc.client.ContainerList(context.Background(), container.ListOptions{})
+	clientList, err := dc.client.ContainerList(context.Background(), container.ListOptions{
+		All: true,
+	})
 	if err != nil {
 		return false, err
 	}
 	for _, c := range clientList {
-		fmt.Println(c.Names)
-		if c.Names[0] == name {
-			return true, nil
+		for _, i := range c.Names {
+			if i == name {
+				return true, nil
+			}
 		}
 	}
 	return false, nil
 }
 
-func (dc *DockerController) update(name string) error {
-	pull, err := dc.client.ImagePull(context.Background(), name, image.PullOptions{})
+func (dc *DockerController) update(imageName string, name string) error {
+	status, err := dc.status("/" + name)
+	if err != nil {
+		return err
+	}
+	if status {
+		fmt.Println("Removing old container")
+		err = dc.client.ContainerRemove(context.Background(), name, container.RemoveOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	pull, err := dc.client.ImagePull(context.Background(), imageName, image.PullOptions{})
 	if err != nil {
 		return err
 	}

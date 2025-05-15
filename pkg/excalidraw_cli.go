@@ -34,12 +34,12 @@ type Controller interface {
 
 func DetermineEngine() (ContainerEngine, error) {
 	if _, err := exec.LookPath("docker"); err == nil {
-		fmt.Println("Determined Docker Engine")
+		fmt.Println("Found Docker Engine")
 		return DockerEngine, nil
 	}
 
 	if _, err := exec.LookPath("podman"); err == nil {
-		fmt.Println("Determined Podman Engine")
+		fmt.Println("Found Podman Engine")
 		return PodmanEngine, nil
 	}
 
@@ -65,16 +65,16 @@ func NewController(system string) (*EngineController, error) {
 		}, nil
 	}
 
-	//if e == DockerEngine {
-	//	controller, err := NewDockerController(system)
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	return &EngineController{
-	//		Engine:     DockerEngine,
-	//		Controller: controller,
-	//	}, nil
-	//}
+	if e == DockerEngine {
+		controller, err := NewDockerController(system)
+		if err != nil {
+			return nil, err
+		}
+		return &EngineController{
+			Engine:     DockerEngine,
+			Controller: controller,
+		}, nil
+	}
 
 	return nil, nil
 }
