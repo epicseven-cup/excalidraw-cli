@@ -2,8 +2,6 @@
 a excalidraw cli that gives you easeier and better controler over a locally excalidraw instance
 
 
-# [Warning] Currently this package only supports Podman, I need to setup some testing for docker to make sure it works fully.
-
 # Install
 1. You will need to install go on your machine: https://go.dev/doc/install
 2. Setup GOPATH
