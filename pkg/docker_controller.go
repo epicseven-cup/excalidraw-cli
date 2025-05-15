@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
@@ -28,6 +29,24 @@ func NewDockerController(system string) (*DockerController, error) {
 	}, nil
 }
 
+func GetContainerIdByName(dc *DockerController, name string) (string, error) {
+	containerList, err := dc.client.ContainerList(context.Background(), container.ListOptions{
+		All: true,
+	})
+	if err != nil {
+		return "", err
+	}
+	for _, i := range containerList {
+		for _, n := range i.Names {
+			if n == name {
+				return i.ID, nil
+			}
+		}
+	}
+	return "", errors.New("container not found")
+}
+
+// exist checks if the image still exist
 func (dc *DockerController) exist(imageName string) (bool, error) {
 	containerList, err := dc.client.ContainerList(context.Background(), container.ListOptions{})
 	if err != nil {
@@ -48,7 +67,7 @@ func (dc *DockerController) run(imageName string, name string) error {
 		return err
 	}
 
-	if exist {
+	if !exist {
 		fmt.Println("Noticed that you don't have the image, pulling now")
 		err := dc.update(imageName, name)
 		if err != nil {
@@ -62,31 +81,33 @@ func (dc *DockerController) run(imageName string, name string) error {
 	}
 
 	if status {
-		fmt.Println("Noticed there was already a container created, re-starting that container...")
+		fmt.Println("Noticed there was already a container created, trying to re-starting that container...")
 		containerList, err := dc.client.ContainerList(context.Background(), container.ListOptions{
 			All: true,
 		})
 		if err != nil {
 			return err
 		}
-		for _, c := range containerList {
-			for _, i := range c.Names {
-				if i == name && c.Image == imageName {
-					err := dc.client.ContainerStart(context.Background(), c.ID, container.StartOptions{})
+
+		for _, i := range containerList {
+			for _, n := range i.Names {
+				if n == "/"+name && i.Image == imageName && i.State != "running" {
+					err := dc.client.ContainerStart(context.Background(), i.ID, container.StartOptions{})
 					if err != nil {
 						return err
 					}
-					fmt.Println("Container re-started, it is r")
+					fmt.Println("Container started successfully")
 					return nil
 				}
 			}
 		}
-		return nil
+		fmt.Println("Noticed container exist, but fail to re-start the container")
 	}
 
 	config := &container.Config{
 		Image: imageName,
 	}
+
 	create, err := dc.client.ContainerCreate(
 		context.Background(),
 		config,
@@ -114,11 +135,24 @@ func (dc *DockerController) run(imageName string, name string) error {
 }
 
 func (dc *DockerController) stop(name string) error {
-	err := dc.client.ContainerStop(context.Background(), name, container.StopOptions{})
+	containerList, err := dc.client.ContainerList(context.Background(), container.ListOptions{})
 	if err != nil {
 		return err
 	}
-	return nil
+
+	for _, i := range containerList {
+		for _, n := range i.Names {
+			if n == "/"+name && i.State == "running" {
+				err = dc.client.ContainerStop(context.Background(), n, container.StopOptions{})
+				if err != nil {
+					return err
+				}
+				fmt.Println("Container stopped")
+				return nil
+			}
+		}
+	}
+	return errors.New("container not found")
 }
 
 func (dc *DockerController) status(name string) (bool, error) {
@@ -144,12 +178,31 @@ func (dc *DockerController) update(imageName string, name string) error {
 		return err
 	}
 	if status {
-		fmt.Println("Removing old container")
-		err = dc.client.ContainerRemove(context.Background(), name, container.RemoveOptions{})
+		fmt.Println("Old container found")
+		id, err := GetContainerIdByName(dc, "/"+name)
 		if err != nil {
 			return err
 		}
+		err = dc.client.ContainerRemove(context.Background(), id, container.RemoveOptions{})
+		if err != nil {
+			return err
+		}
+		fmt.Println("Container removed")
 	}
+
+	exist, err := dc.exist(imageName)
+	if err != nil {
+		return err
+	}
+	if exist {
+		fmt.Println("Old image found")
+		_, err = dc.client.ImageRemove(context.Background(), imageName, image.RemoveOptions{})
+		if err != nil {
+			return err
+		}
+		fmt.Println("Image removed")
+	}
+
 	pull, err := dc.client.ImagePull(context.Background(), imageName, image.PullOptions{})
 	if err != nil {
 		return err
